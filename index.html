@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Polleria</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <header>
+        <h1>Polleria</h1>
+    </header>
+
+    <!-- NAV PRINCIPAL -->
+    <nav>
+        <button onclick="mostrarSeccion('ventas')">Ventas</button>
+        <button onclick="mostrarSeccion('inventario')">Inventario</button>
+        <button onclick="mostrarSeccion('historial')">Historial de Ventas</button>
+        <button onclick="mostrarSeccion('totalesCaja')">Totales y Caja</button>
+        <button onclick="mostrarSeccion('ajustes')">Ajustes</button>
+
+    </nav>
+
+    <main>
+        <!-- Sección Ventas -->
+        <section id="ventas" class="seccion">
+            <div class="tabs">
+                <button onclick="mostrarSubseccion('facturar')">Facturar</button>
+                <button onclick="mostrarSubseccion('gestionarCaja')">Caja (Entradas/Salidas)</button>
+            </div>
+            </div>
+            </div>
+
+
+
+
+            <div id="facturar" class="subseccion">
+                <h2>Facturar</h2>
+                <input type="text" id="codigoProducto" placeholder="Código del producto" oninput="autocompletarProducto()" />
+                <div id="nombreProducto"></div>
+                <div id="precioAuto"></div>
+                <input type="number" id="cantidadKilos" placeholder="Cantidad en kilos" step="0.01" />
+                <button onclick="agregarAlTicket()">Agregar al ticket</button>
+                <button onclick="confirmarVenta()">Confirmar venta</button>
+
+                <div id="ticket">
+                    <h3>Ticket actual</h3>
+                    <table id="tablaTicket">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Kilos</th>
+                                <th>Precio/kg</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                    <p id="totalTicket">Total: $0.00</p>
+                </div>
+            </div>
+
+            <div id="gestionarCaja" class="subseccion" style="display:none;">
+                <h3>Entradas / Salidas de Dinero</h3>
+                <input type="text" id="descripcionCaja" placeholder="Descripción" />
+                <input type="number" id="montoCaja" placeholder="Monto" step="0.01" />
+                <select id="tipoCaja">
+          <option value="entrada">Entrada</option>
+          <option value="salida">Salida</option>
+        </select>
+                <button onclick="agregarMovimientoCaja()">Agregar Movimiento</button>
+                <ul id="listaMovimientosCaja"></ul>
+            </div>
+        </section>
+
+        <!-- Sección Inventario -->
+        <section id="inventario" class="seccion" style="display:none;">
+            <div class="tabs">
+                <button onclick="mostrarSubseccion('verInventario')">Ver Inventario</button>
+                <button onclick="mostrarSubseccion('agregarProducto')">Agregar Producto</button>
+                <button onclick="mostrarSubseccion('editarProducto')">Editar Producto</button>
+            </div>
+
+            <!-- Totales por categoría -->
+            <div id="totalesPorCategoria" style="margin: 15px 0; font-weight: bold;">
+                <!-- Aquí se mostrará el total de dinero según categoría seleccionada -->
+            </div>
+
+            <!-- Sub-sección Ver Inventario con categorías -->
+            <div id="verInventario" class="subseccion">
+                <div class="tabs" style="margin-bottom: 10px;">
+                    <button onclick="mostrarCategoria('pollo')">Pollo</button>
+                    <button onclick="mostrarCategoria('carne')">Carne</button>
+                    <button onclick="mostrarCategoria('cajones')">Cajones</button>
+                </div>
+
+                <ul id="listaInventarioPollo" class="listaInventarioCategoria"></ul>
+                <ul id="listaInventarioCarne" class="listaInventarioCategoria" style="display:none;"></ul>
+                <ul id="listaInventarioCajones" class="listaInventarioCategoria" style="display:none;"></ul>
+            </div>
+
+            <!-- Sub-sección Agregar Producto -->
+            <div id="agregarProducto" class="subseccion" style="display:none;">
+                <input type="text" id="nuevoNombre" placeholder="Nombre del producto" />
+                <input type="text" id="nuevoCodigo" placeholder="Código" />
+                <input type="number" id="nuevoPrecio" placeholder="Precio por kilo" step="0.01" />
+                <input type="number" id="nuevoStock" placeholder="Stock en kilos" step="0.01" />
+                <select id="nuevoCategoria">
+      <option value="">-- Seleccione categoría --</option>
+      <option value="pollo">Pollo</option>
+      <option value="carne">Carne</option>
+      <option value="cajones">Cajones</option>
+    </select>
+                <button onclick="crearProducto()">Agregar</button>
+            </div>
+
+            <!-- Sub-sección Editar Producto -->
+            <div id="editarProducto" class="subseccion" style="display:none;">
+                <h3>Editar Código y Stock</h3>
+                <input type="text" id="codigoEditar" placeholder="Código actual del producto" />
+                <input type="text" id="nuevoCodigoEditar" placeholder="Nuevo código (opcional)" />
+                <input type="number" id="nuevoStockEditar" placeholder="Nuevo stock (kg)" step="0.01" />
+                <button onclick="editarProductoInventario()">Guardar Cambios</button>
+            </div>
+        </section>
+
+        <!-- Sección Historial de Ventas -->
+        <section id="historial" class="seccion" style="display:none;">
+            <h2>Historial de Ventas</h2>
+            <ul id="listaHistorialVentas"></ul>
+        </section>
+
+        <!-- Sección Totales -->
+        <section id="totalesCaja" class="seccion" style="display:none;">
+            <h2>Totales y Caja</h2>
+            <p id="totalFacturas">Total facturas: $0.00</p>
+            <p id="totalGenerado">Total generado: $0.00</p>
+            <p id="totalEfectivo">Total efectivo: $0.00</p>
+            <p id="totalDebito">Total débito: $0.00</p>
+            <p id="totalTransferencia">Total transferencia: $0.00</p>
+            <p id="totalEntradas">Total entradas: $0.00</p>
+            <p id="totalSalidas">Total salidas: $0.00</p>
+            <p id="saldoFinal"><strong>Saldo final en caja: $0.00</strong></p>
+
+            <h3>Gráfico de Ingresos</h3>
+            <canvas id="graficoIngresos" width="400" height="200"></canvas>
+
+            <h3>Gráfico de Gastos</h3>
+            <canvas id="graficoGastos" width="400" height="200"></canvas>
+            <button id="btnImprimirTotales" onclick="imprimirTotales()">Imprimir Totales</button>
+        </section>
+
+        <section id="ajustes" class="seccion" style="display: none;">
+            <h2>Ajustes del Sistema</h2>
+
+            <h3>Nombre del Negocio</h3>
+            <input type="text" id="nombreNegocio" placeholder="Ej: Pollería Don Juan" />
+            <button onclick="guardarNombreNegocio()">Guardar</button>
+
+            <h3>Dirección para el Ticket</h3>
+            <input type="text" id="direccionNegocio" placeholder="Ej: Av. Siempreviva 123" />
+            <button onclick="guardarDireccionNegocio()">Guardar</button>
+
+            <h3>Agregar Sección de Inventario</h3>
+            <input type="text" id="nuevaCategoria" placeholder="Nueva categoría (ej: Verduras)" />
+            <button onclick="agregarNuevaCategoria()">Agregar Categoría</button>
+
+            <h3>Exportar / Importar Datos</h3>
+            <button onclick="exportarDatos()">Exportar Datos</button>
+            <input type="file" id="importarArchivo" onchange="importarDatos(event)" />
+
+            <h3>Configurar Impresión</h3>
+            <label>
+    Tamaño fuente ticket:
+    <input type="number" id="fuenteTicket" value="12" />
+  </label>
+            <button onclick="guardarConfiguracionImpresion()">Guardar Configuración</button>
+
+            <h3>Cambiar Cajero</h3>
+            <input type="text" id="nombreCajero" placeholder="Nombre del cajero" />
+            <button onclick="guardarNombreCajero()">Guardar</button>
+
+            <h3>Restablecer Sistema</h3>
+            <button onclick="restablecerSistema()" style="color: red;">⚠️ Restablecer Todo</button>
+        </section>
+
+    </main>
+    <!-- Modal de Confirmación de Venta -->
+    <div id="modalVenta" class="modal" style="display:none;">
+        <div class="modal-contenido">
+            <h3>Confirmar Venta</h3>
+            <p>Total a pagar: <span id="modalTotal" style="user-select: text;"></span></p>
+
+            <label for="metodoPago">Método de pago:</label>
+            <select id="metodoPago" onchange="actualizarMetodoPago()">
+      <option value="efectivo">Efectivo</option>
+      <option value="debito">Débito</option>
+      <option value="transferencia">Transferencia</option>
+    </select>
+
+            <div id="campoMonto" style="margin-top: 10px;">
+                <label for="montoRecibido">Monto recibido:</label>
+                <input type="number" id="montoRecibido" placeholder="Ingrese monto" onfocus="this.value=''" />
+                <p id="cambioMostrado"></p>
+            </div>
+
+            <button onclick="finalizarVenta()">Confirmar</button>
+            <button onclick="cerrarModal()">Cancelar</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</div>
+
+<canvas id="graficoIngresos" width="400" height="200"></canvas>
+<canvas id="graficoGastos" width="400" height="200"></canvas>
+
+</html>
