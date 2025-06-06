@@ -244,17 +244,17 @@ function procesarPago() {
 }
 // Reemplazá toda tu función original por esta versión COMPLETA
 function confirmarVenta() {
-    console.log("Carrito al confirmar:", carrito);
-    // A) Verificación de carrito
+    // Leer ticket actual desde localStorage
+    const carrito = JSON.parse(localStorage.getItem('ticketActual')) || [];
+
     if (carrito.length === 0) {
         alert("El ticket está vacío.");
         return;
     }
 
-    // B) Total del ticket
     const total = carrito.reduce((s, i) => s + i.subtotal, 0);
 
-    // C) Construcción del modal
+    // Crear modal
     const modal = document.createElement("div");
     modal.classList.add("modal");
     modal.innerHTML = `
@@ -285,7 +285,7 @@ function confirmarVenta() {
     `;
     document.body.appendChild(modal);
 
-    // D) Referencias rápidas
+    // Referencias
     const metodoPagoEl = modal.querySelector("#metodoPago");
     const montoInput = modal.querySelector("#montoRecibido");
     const montoBox = modal.querySelector("#montoRecibidoContainer");
@@ -294,7 +294,6 @@ function confirmarVenta() {
     const btnConfirmar = modal.querySelector("#btnConfirmar");
     const btnCancelar = modal.querySelector("#btnCancelar");
 
-    // E) Muestra / oculta campo “monto” según forma de pago
     metodoPagoEl.addEventListener("change", () => {
         if (metodoPagoEl.value === "efectivo") {
             montoBox.style.display = "block";
@@ -305,7 +304,6 @@ function confirmarVenta() {
     });
     metodoPagoEl.dispatchEvent(new Event("change"));
 
-    // F) Cálculo de cambio en tiempo real
     montoInput.addEventListener("input", () => {
         const recibido = parseFloat(montoInput.value);
         if (!isNaN(recibido)) {
@@ -318,64 +316,133 @@ function confirmarVenta() {
         }
     });
 
-    // G) Flag para evitar duplicados
     let ventaProcesada = false;
-    actualizarTotalesCaja();
-    console.log("Carrito tras agregar:", carrito);
 
-
-    // H) Función compartida para registrar la venta
-    function procesarVenta(imprimir) {
-        if (ventaProcesada) return; // 🔒 bloqueo anti-doble-click
+    function finalizarVenta(imprimir = false) {
+        if (ventaProcesada) return;
         ventaProcesada = true;
 
-        const metodo = metodoPagoEl.value;
-        let recibido = total;
-        if (metodo === "efectivo") {
-            recibido = parseFloat(montoInput.value);
-            if (isNaN(recibido) || recibido < total) {
-                alert("Monto recibido insuficiente.");
-                ventaProcesada = false; // liberar bloqueo
-                return;
-            }
-        }
-        const cambio = metodo === "efectivo" ? (recibido - total) : 0;
+        const metodoPago = metodoPagoEl.value;
+        const recibido = metodoPago === "efectivo" ? parseFloat(montoInput.value) : total;
+        const cambio = metodoPago === "efectivo" ? recibido - total : 0;
 
-        // 1) Registrar venta
-        const venta = {
+        if (metodoPago === "efectivo" && (isNaN(recibido) || recibido < total)) {
+            alert("El monto recibido no es suficiente.");
+            ventaProcesada = false;
+            return;
+        }
+
+        // Guardar la venta en historial
+        const historial = JSON.parse(localStorage.getItem("historialVentas")) || [];
+        historial.push({
             fecha: new Date().toLocaleString(),
-            productos: [...carrito],
-            total: parseFloat(total.toFixed(2)),
-            metodoPago: metodo,
-            dineroRecibido: recibido,
-            cambio: cambio,
-            devuelta: false
-        };
-        historialVentas.push(venta);
+            productos: carrito,
+            total: total,
+            metodoPago,
+            recibido,
+            cambio
+        });
+        localStorage.setItem("historialVentas", JSON.stringify(historial));
 
-        // 2) Vaciar carrito y refrescar UI
-        carrito = [];
-        actualizarTicket();
-        actualizarHistorialVentas();
-        actualizarTotalesCaja();
-        guardarDatos();
+        // Actualizar caja
+        const caja = JSON.parse(localStorage.getItem("caja")) || [];
+        caja.push({
+            fecha: new Date().toLocaleString(),
+            tipo: "ingreso",
+            concepto: "Venta",
+            monto: total,
+            metodo: metodoPago
+        });
+        localStorage.setItem("caja", JSON.stringify(caja));
 
-        // 3) Cerrar modal
-        modal.remove();
-
-        // 4) Imprimir en caso de ser necesario
+        // Imprimir ticket si se solicitó
         if (imprimir) {
-            imprimirTicket(venta);
-        } else {
-            alert("Venta confirmada con éxito.");
+            let textoTicket = "*** TICKET DE VENTA ***\n\n";
+            carrito.forEach(p => {
+                textoTicket += `${p.nombre} - ${p.kilos}kg x $${p.precioPorKilo.toFixed(2)} = $${p.subtotal.toFixed(2)}\n`;
+            });
+            textoTicket += `\nTOTAL: $${total.toFixed(2)}\n`;
+            textoTicket += `Pago: ${metodoPago}\n`;
+            if (metodoPago === "efectivo") {
+                textoTicket += `Recibido: $${recibido.toFixed(2)}\nCambio: $${cambio.toFixed(2)}\n`;
+            }
+            textoTicket += `\nGracias por su compra!\n\n`;
+
+            const win = window.open("", "", "width=400,height=600");
+            win.document.write(`<pre>${textoTicket}</pre>`);
+            win.print();
+            win.close();
         }
+
+        // Limpiar pantalla
+        localStorage.removeItem('ticketActual');
+        document.querySelector('#tablaTicket tbody').innerHTML = '';
+        document.getElementById('totalTicket').textContent = 'Total: $0.00';
+        document.getElementById('totalTicket').dataset.total = "0";
+
+        modal.remove();
     }
 
-    // I) Listeners de botones
-    btnImprimir.addEventListener("click", () => procesarVenta(true));
-    btnConfirmar.addEventListener("click", () => procesarVenta(false));
-    btnCancelar.addEventListener("click", () => modal.remove());
+    btnImprimir.addEventListener("click", () => finalizarVenta(true));
+    btnConfirmar.addEventListener("click", () => finalizarVenta(false));
+    btnCancelar.addEventListener("click", () => {
+        modal.remove();
+    });
 }
+
+
+
+// H) Función compartida para registrar la venta
+function procesarVenta(imprimir) {
+    if (ventaProcesada) return; // 🔒 bloqueo anti-doble-click
+    ventaProcesada = true;
+
+    const metodo = metodoPagoEl.value;
+    let recibido = total;
+    if (metodo === "efectivo") {
+        recibido = parseFloat(montoInput.value);
+        if (isNaN(recibido) || recibido < total) {
+            alert("Monto recibido insuficiente.");
+            ventaProcesada = false; // liberar bloqueo
+            return;
+        }
+    }
+    const cambio = metodo === "efectivo" ? (recibido - total) : 0;
+
+    // 1) Registrar venta
+    const venta = {
+        fecha: new Date().toLocaleString(),
+        productos: [...carrito],
+        total: parseFloat(total.toFixed(2)),
+        metodoPago: metodo,
+        dineroRecibido: recibido,
+        cambio: cambio,
+        devuelta: false
+    };
+    historialVentas.push(venta);
+
+    // 2) Vaciar carrito y refrescar UI
+    carrito = [];
+    actualizarTicket();
+    actualizarHistorialVentas();
+    actualizarTotalesCaja();
+    guardarDatos();
+
+    // 3) Cerrar modal
+    modal.remove();
+
+    // 4) Imprimir en caso de ser necesario
+    if (imprimir) {
+        imprimirTicket(venta);
+    } else {
+        alert("Venta confirmada con éxito.");
+    }
+}
+
+// I) Listeners de botones
+btnImprimir.addEventListener("click", () => procesarVenta(true));
+btnConfirmar.addEventListener("click", () => procesarVenta(false));
+btnCancelar.addEventListener("click", () => modal.remove())
 
 // Inventario
 function crearProducto() {
@@ -1373,3 +1440,27 @@ categoriasGuardadas.forEach(cat => agregarCategoriaAHTML(cat));
 document.querySelector('form').addEventListener('submit', function(event) {
     event.preventDefault();
 });
+
+function guardarVentaEnHistorial(venta) {
+    const historial = JSON.parse(localStorage.getItem('historialVentas')) || [];
+    historial.push(venta);
+    localStorage.setItem('historialVentas', JSON.stringify(historial));
+    mostrarHistorialVentas(); // Para actualizar la vista si estás en esa sección
+}
+
+function mostrarHistorialVentas() {
+    const historial = JSON.parse(localStorage.getItem('historialVentas')) || [];
+    const lista = document.getElementById('listaHistorialVentas');
+    lista.innerHTML = '';
+
+    historial.forEach((venta, index) => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+            <strong>${venta.fecha}</strong> - ${venta.metodoPago.toUpperCase()} - Total: $${venta.total.toFixed(2)}
+            <ul>
+                ${venta.productos.map(p => `<li>${p.nombre} - ${p.kilos} kg x $${p.precio} = $${p.subtotal.toFixed(2)}</li>`).join('')}
+            </ul>
+        `;
+        lista.appendChild(li);
+    });
+}
